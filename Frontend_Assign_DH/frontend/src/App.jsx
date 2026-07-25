@@ -36,8 +36,8 @@ function App() {
     setReport(null);
 
     try {
-      const response = await axios.post("http://localhost:8080/api/audit", { url });
-      setReport(response.data);
+      const response = await axios.post("https://pagepulse-gctb.onrender.com/api/audit", { url });
+       setReport(response.data);
     } catch (err) {
       setError(err.response?.data?.error || "Something went wrong.");
     } finally {
