@@ -15,6 +15,9 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   const auditWebsite = async () => {
+    setError("");
+    setReport(null);
+
     if (!url.trim()) {
       setError("Please enter a URL.");
       return;
@@ -32,18 +35,16 @@ function App() {
     }
 
     setLoading(true);
-    setError("");
-    setReport(null);
 
     try {
       const response = await axios.post("https://pagepulse-gctb.onrender.com/api/audit", { url });
-       setReport(response.data);
+      setReport(response.data);
     } catch (err) {
       setError(err.response?.data?.error || "Something went wrong.");
     } finally {
       setLoading(false);
     }
-  };
+};
 
   const onKeyDown = (e) => {
     if (e.key === "Enter") auditWebsite();
