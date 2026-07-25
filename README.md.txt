@@ -1,210 +1,101 @@
 # Page Pulse
 
-## Overview
+A web tool that audits any URL and returns a report on HTTP status, response time, SEO basics (title, meta description), and content structure (H1 count, missing alt text on images, word count).
 
-Page Pulse is a simple web application that audits a website and provides a basic SEO and page health report. Users can enter any valid website URL, and the application analyzes the page and displays useful information such as the HTTP status, response time, page title, meta description, H1 count, images missing alt text, and approximate word count.
+**Live app**: https://page-pulse-jade.vercel.app
+**Backend API**: https://pagepulse-gctb.onrender.com
 
-This project was built as part of the **Digital Heroes Internship Qualification Task**.
+Built for the Digital Heroes SDE training task.
 
 ---
 
 ## Tech Stack
 
+- **Backend**: Java, Spring Boot, Jsoup (HTML fetching/parsing)
+- **Frontend**: React, Axios
+- **Deployment**: Render (backend, via Docker), Vercel (frontend)
+
+---
+
+## Setup
+
 ### Backend
-- Java 17
-- Spring Boot
-- Jsoup
-- Maven
+```bash
+cd backend/backend
+./mvnw spring-boot:run
+```
+Runs on `http://localhost:8080`
 
 ### Frontend
-- React
-- Axios
-- CSS
+```bash
+cd Frontend_Assign_DH/frontend
+npm install
+npm run dev
+```
+Runs on `http://localhost:5173` (Vite) — update the axios URL in `App.jsx` to point at your local backend if testing locally.
 
 ---
 
-## Features
+## API Contract
 
-- Audit any valid website URL
-- Display HTTP status code
-- Measure page response time
-- Extract page title
-- Extract meta description
-- Count H1 tags
-- Count images without alt text
-- Calculate approximate word count
-- Handle invalid URLs, non-HTML pages, and request failures with meaningful error messages
+### `POST /api/audit`
 
----
-
-# API
-
-### Endpoint
-
-```
-POST /api/audit
-```
-
-### Request
-
+**Request**
 ```json
-{
-  "url": "https://example.com"
-}
+{ "url": "https://example.com" }
 ```
 
-### Success Response
-
+**Success response — 200**
 ```json
 {
   "status": 200,
-  "responseTime": 140,
+  "responseTime": 342,
   "title": "Example Domain",
-  "metaDescription": "",
+  "metaDescription": "N/A",
   "h1Count": 1,
   "missingAltImages": 0,
-  "wordCount": 21
+  "wordCount": 28
 }
 ```
 
-### Error Response
+**Error responses**
 
-```json
-{
-  "error": "Please enter a valid website URL."
-}
-```
-
----
-
-# Setup
-
-## Backend
-
-Clone the repository
-
-```
-git clone <repository-url>
-```
-
-Move to the backend folder
-
-```
-cd backend
-```
-
-Run the application
-
-```
-mvn spring-boot:run
-```
-
-The backend runs on:
-
-```
-http://localhost:8080
-```
+| Scenario | Status | Body |
+|---|---|---|
+| Blank/missing URL | 400 | `{ "error": "URL is required" }` |
+| Malformed URL | 400 | `{ "error": "Invalid URL" }` |
+| Non-HTML response (e.g. PDF, image) | 400 | `{ "error": "URL does not contain HTML content." }` |
+| Request timeout | 408 | `{ "error": "Request timed out" }` |
+| Target site blocks automated requests (403) | 403 | `{ "error": "Access denied. This website blocks automated requests." }` |
+| Target site not found (404) | 404 | `{ "error": "Website not found." }` |
+| Anything unexpected | 500 | `{ "error": "Something went wrong" }` |
 
 ---
 
-## Frontend
+## Design Decisions
 
-Move to the frontend folder
+**1. Used Jsoup instead of a separate HTTP client + manual HTML parsing**
+Jsoup fetches the page and parses the HTML in one step, and it doesn't break on messy real-world pages with unclosed tags or bad formatting. Since this tool audits random public URLs — not just clean, well-built pages — I needed something forgiving rather than strict.
 
-```
-cd frontend
-```
+**2. Used one global exception handler instead of try/catch everywhere**
+Instead of writing try/catch blocks in the controller for every possible failure, I put all the error-handling logic in one place (`GlobalExceptionHandler`). So timeouts, invalid URLs, blocked requests, etc. all get turned into clear, consistent error messages from one spot, and the controller itself stays simple and focused on the actual audit logic.
 
-Install dependencies
-
-```
-npm install
-```
-
-Start the React application
-
-```
-npm run dev
-```
-
-The frontend runs on:
-
-```
-http://localhost:5173
-```
+**3. Used separate request/response classes (DTOs) instead of raw data**
+Instead of passing around loose maps or strings, I made proper `AuditRequest` and `AuditResponse` classes. This makes it obvious what data the API expects and returns, just by looking at the class — and it let me validate the input (like rejecting a blank URL) automatically, before the code even tries to process it.
 
 ---
 
-# Testing
+## Tests
 
-JUnit tests have been added for the service layer.
-
-The tests cover:
-
-- Successful website audit
-- Invalid URL handling
-- Non-HTML response handling
-
-Run the tests using:
-
-```
-mvn test
-```
+Located in `src/test/java/...`. Cover:
+- **Happy path**: valid HTML page returns a correctly populated report (status, title, word count, etc.)
+- **Failure case 1**: invalid/malformed URL returns a 400 with a clear error message
+- **Failure case 2**: non-HTML response (e.g. a PDF or image URL) is rejected with a sensible error instead of attempting to parse it as HTML
 
 ---
 
-# Design Decisions
+## What I'd change with another day
 
-### 1. Using Jsoup
+- **Add a database layer to cache audit results.** Right now, every audit re-fetches and re-parses the page from scratch, even if the same URL was just checked seconds ago. I'd store past audit results (URL, timestamp, and the report) in a database like  MySQL, keyed by URL. 
 
-I used **Jsoup** because it provides a simple way to fetch and parse HTML pages. It made extracting elements like the page title, meta description, H1 tags, and images much easier without writing complex parsing logic.
-
-### 2. Keeping the Business Logic in a Service
-
-Instead of writing all the logic inside the controller, I created a separate `AuditService` class. This keeps the controller focused on handling requests while the service handles the auditing logic, making the code easier to read, maintain, and test.
-
-### 3. Handling Errors Gracefully
-
-I added a global exception handler to return clear error messages for invalid URLs, timeouts, and non-HTML responses. This prevents the application from crashing and provides better feedback to the user.
-
----
-
-# If I Had More Time
-
-If I had another day to work on this project, I would:
-
-- Add an overall SEO score
-- Check for broken links
-- Store previous audit reports in a database
-- Add loading animations and improve the UI
-- Generate downloadable PDF reports
-
----
-
-# Live Demo
-
-Frontend:
-
-```
-(Add deployed frontend URL here)
-```
-
-Backend:
-
-```
-(Add deployed backend URL here)
-```
-
----
-
-# Author
-
-**Poojitha Singamshetty**
-
----
-
-### Footer Credit
-
-Built for Digital Heroes Training Task
-
-https://digitalheroesco.com
+- **Refine word count to reflect actual content, not boilerplate.** Currently `wordCount` counts every visible word on the page, including navigation menus, footers, and sidebars .I'd target the main content area specifically (e.g. by looking for a `<main>` or `<article>` tag) so the metric better reflects the actual page content rather than the site's template.
